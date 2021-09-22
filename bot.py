@@ -4,11 +4,13 @@ from config import settings
 import json
 import random
 import re
+import numexpr as ne
 
 #Load or define constants
 with open('crits.json', 'r', encoding='utf8') as f:
     crits = json.load(f)
-dtypes = {"э":0, "в":1, "у":2, "р":3}
+
+dtypes = ['э', 'в', 'у', 'р']
 difficulty = {
         'низкое':-4,
         'обычное':0,
@@ -20,7 +22,7 @@ default_error_message = '*смущённое бибиканье*'
 error_prefix = '**Когитационная ошибка:** '
 primary_color = 0xab0216
 max_dices = 100
-
+max_roll_request_len = 100
 #Initialize boy
 bot = commands.Bot(command_prefix = settings['prefix'])
 
@@ -41,11 +43,12 @@ async def создай(ctx, skill, quality):
 
 @bot.command(pass_context=True)
 async def крит(ctx, part, damage, dtype):
+    
     part = part.lower()
     dtype = dtype.lower()
     if part in crits.keys():
         if damage.isdigit():
-            if dtype in dtypes.keys():
+            if dtype in dtypes:
                 res = critical_damage(part, int(damage), dtype)
             else:
                 res = error_prefix + 'Третий аргумент может принимать значения: {}.'.format(', '.join(dtype.keys()))
@@ -93,8 +96,14 @@ async def помощь(ctx): #TODO
     
 #Funcitons
 def process_roll(src):
-    shift = 0
     src = src.replace('d', 'к').replace('д', 'к')
+    #src = ''.join(re.findall('[0-9кx\+\-\*\/\(\)\>\<\=]', src))
+    while '**' in src:
+        src = src.replace('**', '*')
+    if len(src) > max_roll_request_len:
+        return error_prefix + 'Ваш запрос не помещается на освящённых бинарных лентах.'
+    shift = 0
+    #src = src.replace('d', 'к').replace('д', 'к')
     count = 0
     rolls = []
     maxs = []
@@ -118,7 +127,7 @@ def process_roll(src):
         src = src[:start] + str(s) + src[end:]
         shift += start - end + len(str(s))
     try:
-        value = eval(src)
+        value = ne.evaluate(src)
         if count == 1 and len(rolls[-1]) == 1:
             res = "**Омниссия вычисляет:** {}".format(value)
         elif count == 1:
@@ -133,8 +142,8 @@ def process_roll(src):
     return res
 
 def critical_damage(part, damage, dtype):
-    src = crits[part][damage - 1].split(":")[dtypes[dtype] + 1]
-    src = src[1:-4]
+    src = crits[part][damage - 1][dtype]
+
     shift = 0
     for roll in re.finditer('1к\d{1,2}\+?\d*', src):
         start, end = roll.span()
@@ -148,7 +157,7 @@ def critical_damage(part, damage, dtype):
             x += int(roll[roll.index('+') + 1:])
         src = src[:end] + " **({})**".format(x) + src[end:]
         shift += 7 + len(str(x))
-    return src
+    return src.strip()
 
 def trade(skill, quality):
     diff = difficulty[quality]
