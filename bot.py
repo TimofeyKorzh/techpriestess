@@ -61,13 +61,18 @@ async def крит(ctx, part, damage, dtype):
     await ctx.send(embed=embed)
     
 @bot.command(pass_context=True)
-async def кинь(ctx, arg):
-    res = process_roll(arg)
+async def кинь(ctx, *args):
+    res = process_roll(''.join(args).replace('\\', ''))
+    await ctx.send(f'{ctx.author.mention}\n' + res)
+
+@bot.command(pass_context=True)
+async def r(ctx, *args):
+    res = process_roll(''.join(args).replace('\\', ''))
     await ctx.send(f'{ctx.author.mention}\n' + res)
     
 @bot.command(pass_context=True)
-async def roll(ctx, arg):
-    res = process_roll(arg)
+async def roll(ctx, *args):
+    res = process_roll(''.join(args).replace('\\', ''))
     await ctx.send(f'{ctx.author.mention}\n' + res)
     
 #Weird commands (Just as her original creator)
@@ -97,6 +102,8 @@ async def помощь(ctx): #TODO
 #Funcitons
 def process_roll(src):
     src = src.replace('d', 'к').replace('д', 'к')
+    #src = src.replace(' ', '')
+    print(src)
     #src = ''.join(re.findall('[0-9кx\+\-\*\/\(\)\>\<\=]', src))
     while '**' in src:
         src = src.replace('**', '*')
@@ -127,6 +134,8 @@ def process_roll(src):
         src = src[:start] + str(s) + src[end:]
         shift += start - end + len(str(s))
     try:
+        #
+        
         value = ne.evaluate(src)
         if count == 1 and len(rolls[-1]) == 1:
             res = "**Омниссия вычисляет:** {}".format(value)
